@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dado de 20 Lados</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      height: 90vh;
+    }
+
+    .table {
+      width: 300px;
+      height: 150px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .chance {
+      position: absolute;
+      width: 125px;
+      height: 125px;
+      background-color: #6A8FD9;
+      box-shadow: inset 0px 0px 20px 0px black;
+      color: #27418C;
+      clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 48px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 0;
+      /* importante! */
+    }
+
+    .chance.shadow {
+      background-color: #27418C;
+      width: 140px;
+      height: 140px;
+    }
+
+    .spinning {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .subtitle {
+      font-size: 12px;
+      width: 60%;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    span {
+      position: fixed;
+      z-index: 100;
+      margin: 30px;
+      padding: 20px;
+      background-color: white;
+      border: 1px solid black;
+      opacity: 0.8;
+
+      div {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+
+        button {
+          padding: 10px;
+          font-size: 20px;
+          border-radius: 4px;
+          border: 1px solid black;
+        }
+      }
+    }
+
+    .console {
+      position: fixed;
+      z-index: 1;
+      background-color: white;
+      bottom: 0px;
+      border-radius: 5px;
+      width: 100%;
+      height: 20vh;
+      border: 2px solid #27418C;
+      overflow-y: scroll;
+      overflow-x: hidden;
+
+      div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+        
+        div {
+          background-color: black;
+          height: 25px;
+          width: 25px;
+          background-color: #6A8FD9;
+          margin-top: 7px;
+          margin-left: 5px;
+          clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+        }
+
+        p {
+          font-size: 20px;
+          margin: 2px;
+          padding: 5px;
+          border-bottom: 1px solid #27418C;
+          color: #27418C;
+        }
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <span id="aviso">
+  </span>
+  <div class="table">
+    <div class="chance shadow" id="dice2"></div>
+    <div class="chance" id="dice">?</div>
+  </div>
+  <p>Logo abaixo, fica o histórico de giros. </p>
+  <div class="console" id="console"></div>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const avisoJaVisto = localStorage.getItem('avisoVisto') === 'true';
+      const nome = localStorage.getItem('nome')
+      if (avisoJaVisto) {
+        document.getElementById('aviso').style.display = 'none';
+      } else {
+        document.getElementById('aviso').innerHTML = `<p>Seja bem vindo ${nome}. Aqui você tem total liberdade para girar seu dado D20 com total segurança. O valor que você tirar
+      no giro será encaminhado para o sistema, e ficará visível à todos.</p>
+    <p>Por que isso? <br> R: Na visão do administrador, e acredito que também na visão dos jogadores, é melhor ter um
+      sistema de giros do que depender de alguém para girar. Aqui você mesmo gira, sem precisar tirar prints para provar
+      nada.</p>
+    <div style="display: flex; justify-content: center; align-items: center; width: 100%;"><button
+        id="advice">Entendi</button></div>`
+        document.getElementById('advice').addEventListener('click', () => {
+          localStorage.setItem('avisoVisto', 'true');
+          document.getElementById('aviso').style.display = "none";
+        })
+        document.getElementById('aviso').style.display = 'block';
+      }
+
+      setInterval(() => {
+        fetch('/resultados')
+          .then(response => response.json())
+          .then(data => {
+            const consoleElement = document.getElementById('console');
+            consoleElement.innerHTML = '';  // Limpa o conteúdo;
+            data.forEach(element => {
+              document.getElementById('console').innerHTML += `
+  <div>
+    <div></div>
+    <p>O ${element.player} tirou ${element.value}! ${element.horario}h</p>
+  </div>
+`;
+
+            });
+          })
+          .catch(error => {
+            console.error('Erro na requisição:', error);
+          });
+      }, 100); // 100ms
+
+    });
+    const dice = document.getElementById('dice');
+    const dice2 = document.getElementById('dice2');
+    let rolling = false;
+
+    const nome = localStorage.getItem('nome');
+    if (!nome) {
+      window.location.href = '/nome'
+    }
+
+    function renderFace(number) {
+      dice.textContent = number;
+    }
+
+    dice.addEventListener('click', () => {
+      if (rolling) return;
+      rolling = true;
+      dice.classList.add('spinning');
+      dice2.classList.add('spinning');
+
+      // Anima mostrando números aleatórios de 1 a 20
+      const interval = setInterval(() => {
+        const randomNum = Math.floor(Math.random() * 20) + 1;
+        renderFace(randomNum);
+      }, 100);
+
+      // Parar depois de 5 segundos
+      setTimeout(() => {
+        clearInterval(interval);
+        dice.classList.remove('spinning');
+        dice2.classList.remove('spinning');
+        const finalNum = Math.floor(Math.random() * 20) + 1;
+        renderFace(finalNum);
+        // Envia os dados para o backend
+        const nome = localStorage.getItem('nome');
+        console.log(nome + " " + finalNum)
+        fetch('/registrar-jogada', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ nome, valor: finalNum })
+
+        })
+          .then(res => res.json())
+          .then(data => {
+            console.log('Jogada registrada com sucesso:', data);
+          })
+          .catch(err => {
+            console.error('Erro ao registrar jogada:', err);
+          });
+        rolling = false;
+      }, 5000);
+    });
+
+
+  </script>
+</body>
+
+</html>
